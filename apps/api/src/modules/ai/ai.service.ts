@@ -1,47 +1,109 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { AnalyzeLeadDto, EstimateProjectDto, GenerateTzDto } from './dto';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+  private readonly groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  private readonly model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+
   constructor(private readonly prisma: PrismaService) {}
 
+  private async callGroq(systemPrompt: string, userMessage: string): Promise<string> {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      this.logger.warn('GROQ_API_KEY not set — returning mock response');
+      return 'AI ответ недоступен: не настроен GROQ_API_KEY';
+    }
+
+    const response = await fetch(this.groqUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      this.logger.error(`Groq API error: ${error}`);
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json() as any;
+    return data.choices[0].message.content as string;
+  }
+
   async analyzeLead(dto: AnalyzeLeadDto) {
-    const response = {
-      projectType: dto.summary.toLowerCase().includes('crm') ? 'CRM + Website' : 'Corporate website',
-      complexity: dto.summary.length > 120 ? 'high' : 'medium',
-      budgetRange: dto.budgetHint ? `${dto.budgetHint} - ${dto.budgetHint * 1.4}` : '350000 - 900000',
-      recommendedAgents: ['Lead Intelligence Agent', 'Finance & Estimation Agent'],
-    };
+    const systemPrompt = `Ты — AI-аналитик веб-студии. Анализируй заявки от потенциальных клиентов.
+Отвечай ТОЛЬКО в формате JSON без markdown, строго по схеме:
+{"projectType":"...","complexity":"low|medium|high","budgetRange":"...","recommendedAgents":["..."],"summary":"..."}`;
+
+    const userMessage = `Заявка клиента: ${dto.summary}${dto.budgetHint ? `\nБюджет: ${dto.budgetHint} руб.` : ''}`;
+
+    let result: any;
+    try {
+      const text = await this.callGroq(systemPrompt, userMessage);
+      result = JSON.parse(text);
+    } catch {
+      result = {
+        projectType: dto.summary.toLowerCase().includes('crm') ? 'CRM + Сайт' : 'Корпоративный сайт',
+        complexity: dto.summary.length > 120 ? 'high' : 'medium',
+        budgetRange: dto.budgetHint ? `${dto.budgetHint} - ${Math.round(dto.budgetHint * 1.4)}` : '350 000 - 900 000 ₽',
+        recommendedAgents: ['Lead Intelligence Agent', 'Finance Agent'],
+        summary: 'Анализ выполнен в автономном режиме',
+      };
+    }
 
     await this.prisma.aiRequest.create({
       data: {
         organizationId: dto.organizationId,
         type: 'ANALYZE_LEAD',
         payload: JSON.stringify(dto),
-        result: JSON.stringify(response),
+        result: JSON.stringify(result),
       },
     });
 
-    return response;
+    return result;
   }
 
   async generateTechnicalSpecification(dto: GenerateTzDto) {
-    const sections = [
-      '1. Цели проекта',
-      '2. Пользовательские сценарии',
-      '3. Информационная архитектура',
-      '4. Интеграции и CRM модули',
-      '5. SEO и аналитика',
-      '6. Этапы production и acceptance criteria',
-    ];
+    const systemPrompt = `Ты — технический директор веб-студии. Пишешь профессиональные технические задания на русском языке.
+Отвечай ТОЛЬКО в формате JSON без markdown:
+{"title":"...","pagesEstimate":14,"sections":["..."],"content":"полный текст ТЗ"}`;
 
-    const response = {
-      title: `Техническое задание для проекта ${dto.projectId}`,
-      pagesEstimate: 14,
-      sections,
-      content: `${dto.brief}\n\n${sections.join('\n')}`,
-    };
+    const userMessage = `Бриф проекта:\n${dto.brief}`;
+
+    let result: any;
+    try {
+      const text = await this.callGroq(systemPrompt, userMessage);
+      result = JSON.parse(text);
+    } catch {
+      const sections = [
+        '1. Цели проекта',
+        '2. Пользовательские сценарии',
+        '3. Информационная архитектура',
+        '4. Интеграции',
+        '5. SEO и аналитика',
+        '6. Этапы и критерии приёмки',
+      ];
+      result = {
+        title: `Техническое задание — проект ${dto.projectId}`,
+        pagesEstimate: 14,
+        sections,
+        content: `${dto.brief}\n\n${sections.join('\n')}`,
+      };
+    }
 
     await this.prisma.aiRequest.create({
       data: {
@@ -49,33 +111,53 @@ export class AiService {
         projectId: dto.projectId,
         type: 'GENERATE_TZ',
         payload: JSON.stringify(dto),
-        result: JSON.stringify(response),
+        result: JSON.stringify(result),
       },
     });
 
-    return response;
+    return result;
   }
 
   async generateProjectPlan(dto: GenerateTzDto) {
-    return {
-      projectId: dto.projectId,
-      tasks: [
-        'Discovery & research',
-        'Wireframes and UX',
-        'Visual design system',
-        'Frontend development',
-        'Backend integrations',
-        'QA and launch',
-      ],
-    };
+    const systemPrompt = `Ты — project manager веб-студии. Составляешь план задач для проекта.
+Отвечай ТОЛЬКО в формате JSON: {"projectId":"...","tasks":["..."]}`;
+
+    const userMessage = `Бриф: ${dto.brief}`;
+
+    try {
+      const text = await this.callGroq(systemPrompt, userMessage);
+      return JSON.parse(text);
+    } catch {
+      return {
+        projectId: dto.projectId,
+        tasks: [
+          'Discovery & research',
+          'Wireframes и UX',
+          'Визуальная дизайн-система',
+          'Frontend разработка',
+          'Backend и интеграции',
+          'QA и запуск',
+        ],
+      };
+    }
   }
 
   async estimateProject(dto: EstimateProjectDto) {
-    return {
-      estimatedBudget: dto.budget ?? 780000,
-      deliveryWeeks: 8,
-      team: ['PM', 'Designer', 'Frontend', 'Backend', 'QA'],
-      assumptions: ['1 Telegram Mini App', '1 CRM dashboard', '1 document workflow'],
-    };
+    const systemPrompt = `Ты — финансовый аналитик веб-студии. Оцениваешь стоимость и сроки проектов.
+Отвечай ТОЛЬКО в формате JSON: {"estimatedBudget":0,"deliveryWeeks":0,"team":["..."],"assumptions":["..."]}`;
+
+    const userMessage = `Описание: ${dto.scope}${dto.budget ? `\nПланируемый бюджет: ${dto.budget} руб.` : ''}`;
+
+    try {
+      const text = await this.callGroq(systemPrompt, userMessage);
+      return JSON.parse(text);
+    } catch {
+      return {
+        estimatedBudget: dto.budget ?? 780000,
+        deliveryWeeks: 8,
+        team: ['PM', 'Дизайнер', 'Frontend', 'Backend', 'QA'],
+        assumptions: ['1 Telegram Mini App', '1 CRM дашборд', '1 документооборот'],
+      };
+    }
   }
 }
