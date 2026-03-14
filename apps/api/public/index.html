@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Studio OS CRM</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg2: #111111;
+      --bg3: #1a1a1a;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --text: #fafafa;
+      --muted: #71717a;
+      --blue: #6366f1;
+      --blue-glow: rgba(99,102,241,0.25);
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --radius: 12px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* NAV */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,10,0.95);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      display: flex;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 10px 4px 14px;
+      gap: 4px; cursor: pointer;
+      color: var(--muted); font-size: 10px;
+      transition: color 0.2s;
+    }
+    .nav-item.active { color: var(--blue); }
+    .nav-item svg { width: 22px; height: 22px; }
+
+    /* SCREENS */
+    .screen { display: none; padding: 16px; }
+    .screen.active { display: block; }
+
+    /* HEADER */
+    .page-header { margin-bottom: 20px; }
+    .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    /* CARD */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    /* METRICS GRID */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .metric-val { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+    .metric-label { font-size: 11px; color: var(--muted); }
+    .metric-val.blue { color: var(--blue); }
+    .metric-val.green { color: var(--green); }
+    .metric-val.yellow { color: var(--yellow); }
+
+    /* BADGE */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+    }
+    .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-blue { background: rgba(99,102,241,0.15); color: var(--blue); }
+    .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-muted { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+    /* BUTTON */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 10px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--blue); color: #fff;
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-ghost {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:active { transform: scale(0.97); }
+    .btn-full { width: 100%; }
+
+    /* QUICK ACTIONS */
+    .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .quick-btn {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 12px;
+      text-align: center; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .quick-btn:active { background: rgba(99,102,241,0.1); }
+    .quick-icon { font-size: 20px; margin-bottom: 6px; }
+    .quick-label { font-size: 12px; color: var(--muted); }
+
+    /* LEAD CARD */
+    .lead-row { display: flex; align-items: center; gap: 12px; }
+    .lead-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; flex-shrink: 0;
+    }
+    .lead-info { flex: 1; min-width: 0; }
+    .lead-name { font-weight: 600; font-size: 14px; }
+    .lead-msg { font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .lead-time { font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
+
+    /* KANBAN */
+    .kanban-col { margin-bottom: 16px; }
+    .kanban-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px; font-size: 13px; font-weight: 600;
+    }
+    .kanban-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* FORM */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; }
+    .form-input {
+      width: 100%; padding: 10px 12px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--blue); }
+    .form-textarea {
+      width: 100%; padding: 10px 12px; min-height: 80px; resize: vertical;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; outline: none;
+    }
+    .form-textarea:focus { border-color: var(--blue); }
+
+    /* AI CHAT */
+    .chat-messages { min-height: 300px; margin-bottom: 12px; }
+    .msg { margin-bottom: 12px; }
+    .msg-user { display: flex; justify-content: flex-end; }
+    .msg-ai { display: flex; justify-content: flex-start; }
+    .msg-bubble {
+      max-width: 80%; padding: 10px 14px; border-radius: 12px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .msg-user .msg-bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 4px; }
+    .msg-ai .msg-bubble { background: var(--bg3); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .ai-name { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input {
+      flex: 1; padding: 10px 12px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; outline: none;
+    }
+    .chat-input:focus { border-color: var(--blue); }
+
+    /* SECTION */
+    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* DIVIDER */
+    hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      align-items: flex-end;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0; padding: 24px 16px;
+      width: 100%; max-height: 85vh; overflow-y: auto;
+    }
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 0 auto 20px;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+    /* SPINNER */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* TOAST */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 13px;
+      z-index: 300; transition: opacity 0.3s; white-space: nowrap;
+    }
+    .toast.hide { opacity: 0; }
+
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--blue); border-radius: 2px; }
+
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .doc-icon { font-size: 28px; }
+  </style>
+</head>
+<body>
+
+<!-- SCREENS -->
+
+<!-- DASHBOARD -->
+<div class="screen active" id="screen-dashboard">
+  <div class="page-header">
+    <div class="page-title">Studio OS</div>
+    <div class="page-sub" id="user-greeting">Добро пожаловать!</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-val blue" id="m-leads">0</div>
+      <div class="metric-label">Заявки</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val green" id="m-projects">0</div>
+      <div class="metric-label">Проекты</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val yellow" id="m-tasks">0</div>
+      <div class="metric-label">Задачи</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" id="m-docs">0</div>
+      <div class="metric-label">Документы</div>
+    </div>
+  </div>
+
+  <div class="section-title">Быстрые действия</div>
+  <div class="quick-grid">
+    <div class="quick-btn" onclick="showModal('modal-lead')">
+      <div class="quick-icon">📥</div>
+      <div class="quick-label">Новая заявка</div>
+    </div>
+    <div class="quick-btn" onclick="showModal('modal-project')">
+      <div class="quick-icon">🚀</div>
+      <div class="quick-label">Новый проект</div>
+    </div>
+    <div class="quick-btn" onclick="navTo('ai')">
+      <div class="quick-icon">🤖</div>
+      <div class="quick-label">AI Помощник</div>
+    </div>
+    <div class="quick-btn" onclick="navTo('documents')">
+      <div class="quick-icon">📄</div>
+      <div class="quick-label">Договор</div>
+    </div>
+  </div>
+
+  <div class="section-title">Последние заявки</div>
+  <div id="recent-leads-list">
+    <div style="text-align:center;padding:30px;color:var(--muted)">Нет заявок</div>
+  </div>
+</div>
+
+<!-- LEADS -->
+<div class="screen" id="screen-leads">
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="page-title">Заявки</div>
+        <div class="page-sub">Входящие лиды</div>
+      </div>
+      <button class="btn btn-primary" onclick="showModal('modal-lead')">+ Добавить</button>
+    </div>
+  </div>
+  <div id="leads-list">
+    <div style="text-align:center;padding:40px;color:var(--muted)">Нет заявок</div>
+  </div>
+</div>
+
+<!-- PROJECTS -->
+<div class="screen" id="screen-projects">
+  <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="page-title">Проекты</div>
+        <div class="page-sub">Kanban доска</div>
+      </div>
+      <button class="btn btn-primary" onclick="showModal('modal-project')">+ Проект</button>
+    </div>
+  </div>
+  <div id="kanban-board">
+    <div style="text-align:center;padding:40px;color:var(--muted)">Нет проектов</div>
+  </div>
+</div>
+
+<!-- DOCUMENTS -->
+<div class="screen" id="screen-documents">
+  <div class="page-header">
+    <div class="page-title">Документы</div>
+    <div class="page-sub">Договора и акты</div>
+  </div>
+  <div class="quick-grid">
+    <div class="quick-btn" onclick="openDocForm('CONTRACT')">
+      <div class="quick-icon">📋</div>
+      <div class="quick-label">Договор подряда</div>
+    </div>
+    <div class="quick-btn" onclick="openDocForm('ACT')">
+      <div class="quick-icon">✅</div>
+      <div class="quick-label">Акт выполненных работ</div>
+    </div>
+    <div class="quick-btn" onclick="openDocForm('INVOICE')">
+      <div class="quick-icon">💰</div>
+      <div class="quick-label">Счет на оплату</div>
+    </div>
+    <div class="quick-btn" onclick="openDocForm('TECH_SPEC')">
+      <div class="quick-icon">📐</div>
+      <div class="quick-label">Техническое задание</div>
+    </div>
+  </div>
+  <div class="section-title">Созданные документы</div>
+  <div id="docs-list">
+    <div style="text-align:center;padding:30px;color:var(--muted)">Нет документов</div>
+  </div>
+</div>
+
+<!-- AI -->
+<div class="screen" id="screen-ai">
+  <div class="page-header">
+    <div class="page-title">AI Ассистент</div>
+    <div class="page-sub">5 автономных агентов</div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="badge badge-blue">📊 Аналитик</span>
+      <span class="badge badge-green">📝 Генератор ТЗ</span>
+      <span class="badge badge-yellow">⚖️ Договоры</span>
+      <span class="badge badge-muted">🗂️ Планировщик</span>
+      <span class="badge badge-muted">💰 Финансы</span>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="msg msg-ai">
+      <div>
+        <div class="ai-name">Studio OS AI</div>
+        <div class="msg-bubble">Привет! Я AI-менеджер вашей студии. Могу генерировать ТЗ, договора, оценивать проекты и создавать задачи. Что делаем?</div>
+      </div>
+    </div>
+  </div>
+  <div class="quick-grid" style="margin-bottom:12px">
+    <div class="quick-btn" onclick="sendAIPreset('Сгенерируй ТЗ для сайта-визитки')">
+      <div class="quick-icon" style="font-size:14px">📐</div>
+      <div class="quick-label">Создать ТЗ</div>
+    </div>
+    <div class="quick-btn" onclick="sendAIPreset('Оцени стоимость интернет-магазина')">
+      <div class="quick-icon" style="font-size:14px">💰</div>
+      <div class="quick-label">Оценить проект</div>
+    </div>
+    <div class="quick-btn" onclick="sendAIPreset('Создай план задач для MVP')">
+      <div class="quick-icon" style="font-size:14px">🗂️</div>
+      <div class="quick-label">План задач</div>
+    </div>
+    <div class="quick-btn" onclick="sendAIPreset('Сгенерируй договор подряда')">
+      <div class="quick-icon" style="font-size:14px">📋</div>
+      <div class="quick-label">Договор</div>
+    </div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" placeholder="Напишите задачу..." />
+    <button class="btn btn-primary" onclick="sendAIMsg()">→</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="screen-settings">
+  <div class="page-header">
+    <div class="page-title">Настройки</div>
+  </div>
+  <div class="card">
+    <div class="section-title">Профиль</div>
+    <div id="settings-profile" style="color:var(--muted);font-size:13px">Загрузка...</div>
+  </div>
+  <div class="card">
+    <div class="section-title">API</div>
+    <div class="form-group">
+      <label class="form-label">OpenRouter API Key</label>
+      <input class="form-input" id="api-key-input" placeholder="sk-or-..." />
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveApiKey()">Сохранить</button>
+  </div>
+  <div class="card">
+    <div class="section-title">Организация</div>
+    <div id="org-info" style="color:var(--muted);font-size:13px">Загрузка...</div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="navTo('dashboard')" id="nav-dashboard">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+    <span>Главная</span>
+  </div>
+  <div class="nav-item" onclick="navTo('leads')" id="nav-leads">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-width="2"/></svg>
+    <span>Заявки</span>
+  </div>
+  <div class="nav-item" onclick="navTo('projects')" id="nav-projects">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" stroke-width="2"/></svg>
+    <span>Проекты</span>
+  </div>
+  <div class="nav-item" onclick="navTo('documents')" id="nav-documents">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="2"/><polyline points="14 2 14 8 20 8" stroke-width="2"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="2"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="2"/></svg>
+    <span>Документы</span>
+  </div>
+  <div class="nav-item" onclick="navTo('ai')" id="nav-ai">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke-width="2"/></svg>
+    <span>AI</span>
+  </div>
+</nav>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-lead" onclick="closeModalOutside(event,'modal-lead')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Новая заявка</div>
+    <div class="form-group">
+      <label class="form-label">Имя клиента *</label>
+      <input class="form-input" id="lead-name" placeholder="Иван Петров" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Телефон</label>
+      <input class="form-input" id="lead-phone" placeholder="+7 999 000 00 00" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="lead-email" placeholder="client@example.com" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Описание задачи</label>
+      <textarea class="form-textarea" id="lead-message" placeholder="Что нужно сделать..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Источник</label>
+      <input class="form-input" id="lead-source" placeholder="Telegram / ВКонтакте / сайт" />
+    </div>
+    <button class="btn btn-primary btn-full" id="lead-submit-btn" onclick="submitLead()">Добавить заявку</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-project" onclick="closeModalOutside(event,'modal-project')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Новый проект</div>
+    <div class="form-group">
+      <label class="form-label">Название проекта *</label>
+      <input class="form-input" id="proj-name" placeholder="Сайт для кафе" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Стоимость (₽)</label>
+      <input class="form-input" id="proj-price" type="number" placeholder="50000" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Дедлайн</label>
+      <input class="form-input" id="proj-deadline" type="date" />
+    </div>
+    <button class="btn btn-primary btn-full" id="proj-submit-btn" onclick="submitProject()">Создать проект</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-doc" onclick="closeModalOutside(event,'modal-doc')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-doc-title">Создать документ</div>
+    <input type="hidden" id="doc-kind" value="CONTRACT" />
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input class="form-input" id="doc-title" placeholder="Договор подряда №001" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Имя клиента</label>
+      <input class="form-input" id="doc-client" placeholder="ООО Рога и Копыта" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Название проекта</label>
+      <input class="form-input" id="doc-project" placeholder="Разработка сайта" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Стоимость (₽)</label>
+      <input class="form-input" id="doc-price" type="number" placeholder="100000" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Срок</label>
+      <input class="form-input" id="doc-deadline" placeholder="30 дней" />
+    </div>
+    <button class="btn btn-primary btn-full" id="doc-submit-btn" onclick="submitDoc()">Сформировать документ</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast hide" id="toast"></div>
+
+<script>
+const API = 'http://localhost:4000/api';
+const ORG_ID = 'demo-org-' + (window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? 'local');
+let state = { leads: [], projects: [], docs: [], tasks: [] };
+
+// TELEGRAM INIT
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  const user = tg.initDataUnsafe?.user;
+  if (user) {
+    document.getElementById('user-greeting').textContent = `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`;
+    document.getElementById('settings-profile').innerHTML =
+      `<b>${user.first_name} ${user.last_name ?? ''}</b><br>@${user.username ?? 'no username'}<br>ID: ${user.id}`;
+  }
+}
+
+// NAV
+function navTo(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'leads') renderLeads();
+  if (name === 'projects') renderKanban();
+  if (name === 'documents') renderDocs();
+}
+
+// MODAL
+function showModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOutside(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+function openDocForm(kind) {
+  const titles = { CONTRACT:'Договор подряда', ACT:'Акт выполненных работ', INVOICE:'Счёт на оплату', TECH_SPEC:'Техническое задание' };
+  document.getElementById('doc-kind').value = kind;
+  document.getElementById('modal-doc-title').textContent = titles[kind];
+  showModal('modal-doc');
+}
+
+// TOAST
+function toast(msg, ms = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.remove('hide');
+  setTimeout(() => el.classList.add('hide'), ms);
+}
+
+// API HELPERS
+async function apiPost(path, body) {
+  try {
+    const r = await fetch(API + path, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    return await r.json();
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+async function apiGet(path) {
+  try {
+    const r = await fetch(API + path);
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+// SUBMIT LEAD
+async function submitLead() {
+  const name = document.getElementById('lead-name').value.trim();
+  if (!name) { toast('Введите имя клиента'); return; }
+  const btn = document.getElementById('lead-submit-btn');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await apiPost('/leads', {
+    organizationId: ORG_ID,
+    name,
+    phone: document.getElementById('lead-phone').value,
+    email: document.getElementById('lead-email').value,
+    message: document.getElementById('lead-message').value,
+    source: document.getElementById('lead-source').value || 'Telegram'
+  });
+  btn.innerHTML = 'Добавить заявку'; btn.disabled = false;
+  if (res.lead) {
+    state.leads.unshift(res.lead);
+    closeModal('modal-lead');
+    toast('✅ Заявка добавлена! AI анализирует...');
+    document.getElementById('lead-name').value = '';
+    document.getElementById('lead-phone').value = '';
+    document.getElementById('lead-email').value = '';
+    document.getElementById('lead-message').value = '';
+    updateMetrics();
+    renderRecentLeads();
+  } else { toast('Ошибка: ' + (res.message ?? 'нет ответа')); }
+}
+
+// SUBMIT PROJECT
+async function submitProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  if (!name) { toast('Введите название'); return; }
+  const btn = document.getElementById('proj-submit-btn');
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  // need a client — create a stub
+  const clientRes = await apiPost('/leads', {
+    organizationId: ORG_ID,
+    name: name + ' (клиент)',
+    source: 'manual'
+  });
+  const convertRes = clientRes.lead ? await apiPost('/leads/convert', {
+    organizationId: ORG_ID, leadId: clientRes.lead.id
+  }) : null;
+  if (convertRes?.project) {
+    const p = convertRes.project;
+    // update price/deadline
+    state.projects.unshift({ ...p, name, price: document.getElementById('proj-price').value });
+    closeModal('modal-project');
+    toast('✅ Проект создан!');
+    document.getElementById('proj-name').value = '';
+    document.getElementById('proj-price').value = '';
+    document.getElementById('proj-deadline').value = '';
+    updateMetrics();
+  } else { toast('Ошибка создания'); }
+  btn.innerHTML = 'Создать проект'; btn.disabled = false;
+}
+
+// SUBMIT DOC
+async function submitDoc() {
+  const kind = document.getElementById('doc-kind').value;
+  const title = document.getElementById('doc-title').value || 'Документ';
+  const btn = document.getElementById('doc-submit-btn');
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  const res = await apiPost('/documents/contract', {
+    organizationId: ORG_ID,
+    kind, title,
+    variables: {
+      contract_number: String(Math.floor(Math.random()*9000)+1000),
+      date: new Date().toLocaleDateString('ru-RU'),
+      client_name: document.getElementById('doc-client').value || 'Клиент',
+      project_name: document.getElementById('doc-project').value || 'Проект',
+      price: document.getElementById('doc-price').value || '0',
+      deadline: document.getElementById('doc-deadline').value || 'по согласованию'
+    }
+  });
+  btn.innerHTML = 'Сформировать документ'; btn.disabled = false;
+  if (res.document) {
+    state.docs.unshift(res.document);
+    closeModal('modal-doc');
+    toast('✅ Документ сформирован!');
+    updateMetrics();
+    renderDocs();
+    navTo('documents');
+  } else { toast('Ошибка: ' + JSON.stringify(res)); }
+}
+
+// RENDER
+function updateMetrics() {
+  document.getElementById('m-leads').textContent = state.leads.length;
+  document.getElementById('m-projects').textContent = state.projects.length;
+  document.getElementById('m-tasks').textContent = state.tasks.length;
+  document.getElementById('m-docs').textContent = state.docs.length;
+}
+
+function renderRecentLeads() {
+  const el = document.getElementById('recent-leads-list');
+  if (!state.leads.length) { el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Нет заявок</div>'; return; }
+  el.innerHTML = state.leads.slice(0,5).map(l => `
+    <div class="card">
+      <div class="lead-row">
+        <div class="lead-avatar">${l.name[0].toUpperCase()}</div>
+        <div class="lead-info">
+          <div class="lead-name">${l.name}</div>
+          <div class="lead-msg">${l.message || l.source || 'Нет описания'}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="badge badge-${statusColor(l.status)}">${statusLabel(l.status)}</span>
+          <div class="lead-time" style="margin-top:4px">${timeAgo(l.createdAt)}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderLeads() {
+  const el = document.getElementById('leads-list');
+  if (!state.leads.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Нет заявок</div>'; return; }
+  el.innerHTML = state.leads.map(l => `
+    <div class="card">
+      <div class="lead-row">
+        <div class="lead-avatar">${l.name[0].toUpperCase()}</div>
+        <div class="lead-info">
+          <div class="lead-name">${l.name}</div>
+          <div class="lead-msg">${l.phone ?? ''} ${l.email ?? ''}</div>
+          <div class="lead-msg" style="margin-top:2px">${l.message || ''}</div>
+        </div>
+        <span class="badge badge-${statusColor(l.status)}">${statusLabel(l.status)}</span>
+      </div>
+      ${l.status === 'NEW' ? `<button class="btn btn-ghost btn-full" style="margin-top:12px" onclick="convertLead('${l.id}')">Конвертировать в клиента →</button>` : ''}
+    </div>`).join('');
+}
+
+async function convertLead(id) {
+  toast('Конвертирую...');
+  const res = await apiPost('/leads/convert', { organizationId: ORG_ID, leadId: id });
+  if (res.client) {
+    const lead = state.leads.find(l => l.id === id);
+    if (lead) lead.status = 'CONVERTED';
+    if (res.project) state.projects.unshift(res.project);
+    renderLeads(); updateMetrics();
+    toast('✅ Конвертировано!');
+  }
+}
+
+const stageNames = {
+  LEAD:'Лид', NEGOTIATION:'Переговоры', CONTRACT:'Договор',
+  DEVELOPMENT:'Разработка', TESTING:'Тестирование', COMPLETED:'Завершён'
+};
+const stageColors = {
+  LEAD:'#6366f1', NEGOTIATION:'#eab308', CONTRACT:'#f97316',
+  DEVELOPMENT:'#3b82f6', TESTING:'#a855f7', COMPLETED:'#22c55e'
+};
+
+function renderKanban() {
+  const el = document.getElementById('kanban-board');
+  if (!state.projects.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Нет проектов</div>'; return; }
+  const stages = ['LEAD','NEGOTIATION','CONTRACT','DEVELOPMENT','TESTING','COMPLETED'];
+  el.innerHTML = stages.map(stage => {
+    const ps = state.projects.filter(p => p.stage === stage);
+    if (!ps.length) return '';
+    return `<div class="kanban-col">
+      <div class="kanban-header">
+        <div class="kanban-dot" style="background:${stageColors[stage]}"></div>
+        ${stageNames[stage]} <span style="color:var(--muted)">(${ps.length})</span>
+      </div>
+      ${ps.map(p => `
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:4px">${p.name}</div>
+          ${p.price ? `<div style="color:var(--green);font-size:13px">₽ ${Number(p.price).toLocaleString('ru')}</div>` : ''}
+          <div style="color:var(--muted);font-size:12px;margin-top:4px">${timeAgo(p.createdAt)}</div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+const docIcons = { CONTRACT:'📋', ACT:'✅', INVOICE:'💰', TECH_SPEC:'📐' };
+const docLabels = { CONTRACT:'Договор', ACT:'Акт', INVOICE:'Счёт', TECH_SPEC:'ТЗ' };
+
+function renderDocs() {
+  const el = document.getElementById('docs-list');
+  if (!state.docs.length) { el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Нет документов</div>'; return; }
+  el.innerHTML = state.docs.map(d => `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:28px">${docIcons[d.kind] ?? '📄'}</div>
+        <div style="flex:1">
+          <div style="font-weight:600">${d.title}</div>
+          <div style="color:var(--muted);font-size:12px">${docLabels[d.kind] ?? d.kind} · ${timeAgo(d.createdAt)}</div>
+        </div>
+        <span class="badge badge-green">Готов</span>
+      </div>
+      ${d.content ? `<div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);white-space:pre-wrap">${d.content.substring(0,200)}${d.content.length>200?'...':''}</div>` : ''}
+    </div>`).join('');
+}
+
+// AI CHAT
+const aiResponses = {
+  'ТЗ': `📐 **Техническое задание**\n\nЦель: разработка веб-сайта\n\n1. Главная страница\n2. О нас\n3. Услуги / Каталог\n4. Контакты + форма\n5. Адаптивная верстка (mobile-first)\n6. SEO оптимизация\n\nСтек: React + Next.js + TailwindCSS\nСрок: 2-3 недели\nСтоимость: от 50 000 ₽`,
+  'оцени': `💰 **Оценка проекта**\n\nИнтернет-магазин:\n• Дизайн — 40 000 ₽\n• Frontend — 60 000 ₽\n• Backend + CMS — 80 000 ₽\n• Интеграции — 20 000 ₽\n\nИтого: **от 200 000 ₽**\nСрок: 6-8 недель`,
+  'план': `🗂️ **План задач**\n\n1. Анализ требований (2 дня)\n2. Дизайн UI/UX (5 дней)\n3. Верстка компонентов (7 дней)\n4. Backend API (7 дней)\n5. Интеграция (3 дня)\n6. Тестирование (3 дня)\n7. Деплой (1 день)\n\nИтого: ~4 недели`,
+  'договор': `📋 **Договор подряда**\n\nСтороны:\n• Исполнитель: ИП / ООО\n• Заказчик: клиент\n\nПредмет: разработка сайта\nОплата: 50% аванс + 50% по завершению\nОтветственность: ст. 702-703 ГК РФ\n\n➡️ Перейдите в раздел Документы для генерации полного договора.`
+};
+
+function addMsg(text, isUser) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (isUser ? 'msg-user' : 'msg-ai');
+  div.innerHTML = isUser
+    ? `<div class="msg-bubble">${text}</div>`
+    : `<div><div class="ai-name">Studio OS AI</div><div class="msg-bubble" style="white-space:pre-wrap">${text}</div></div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendAIPreset(text) {
+  document.getElementById('chat-input').value = text;
+  sendAIMsg();
+}
+
+async function sendAIMsg() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  addMsg(msg, true);
+
+  // local mock response
+  const key = Object.keys(aiResponses).find(k => msg.toLowerCase().includes(k.toLowerCase()));
+  const reply = key ? aiResponses[key] : `🤖 Обрабатываю запрос...\n\nВаш запрос: "${msg}"\n\nAI агент анализирует и готовит ответ. Подключите OpenRouter API key в Настройках для полноценной работы.`;
+  setTimeout(() => addMsg(reply, false), 600);
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAIMsg();
+});
+
+// SETTINGS
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) { localStorage.setItem('openrouter_key', key); toast('✅ API ключ сохранён'); }
+}
+document.getElementById('api-key-input').value = localStorage.getItem('openrouter_key') ?? '';
+document.getElementById('org-info').innerHTML = `Организация ID: <code style="font-size:11px;color:var(--blue)">${ORG_ID}</code>`;
+
+// UTILS
+function statusLabel(s) { return {NEW:'Новый',QUALIFIED:'Квалиф.',WON:'Выигран',LOST:'Потерян',CONVERTED:'Конвертирован'}[s] ?? s; }
+function statusColor(s) { return {NEW:'blue',QUALIFIED:'yellow',WON:'green',LOST:'red',CONVERTED:'muted'}[s] ?? 'muted'; }
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (d < 60) return 'только что';
+  if (d < 3600) return Math.floor(d/60) + ' мин';
+  if (d < 86400) return Math.floor(d/3600) + ' ч';
+  return Math.floor(d/86400) + ' д';
+}
+
+// LOAD INITIAL DATA
+async function loadData() {
+  const [projects, tasks] = await Promise.all([
+    apiGet('/projects?organizationId=' + ORG_ID),
+    apiGet('/tasks?organizationId=' + ORG_ID)
+  ]);
+  if (Array.isArray(projects)) state.projects = projects;
+  if (Array.isArray(tasks)) state.tasks = tasks;
+  updateMetrics();
+  renderRecentLeads();
+}
+
+loadData();
+</script>
+</body>
+</html>
