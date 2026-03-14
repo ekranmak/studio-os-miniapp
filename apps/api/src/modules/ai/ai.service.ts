@@ -5,19 +5,19 @@ import { AnalyzeLeadDto, EstimateProjectDto, GenerateTzDto } from './dto';
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  private readonly model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+  private readonly xaiUrl = 'https://api.x.ai/v1/chat/completions';
+  private readonly model = process.env.XAI_MODEL ?? 'grok-3-mini';
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async callGroq(systemPrompt: string, userMessage: string): Promise<string> {
-    const apiKey = process.env.GROQ_API_KEY;
+  private async callXAI(systemPrompt: string, userMessage: string): Promise<string> {
+    const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
-      this.logger.warn('GROQ_API_KEY not set — returning mock response');
-      return 'AI ответ недоступен: не настроен GROQ_API_KEY';
+      this.logger.warn('XAI_API_KEY not set — returning mock response');
+      return 'AI ответ недоступен: не настроен XAI_API_KEY';
     }
 
-    const response = await fetch(this.groqUrl, {
+    const response = await fetch(this.xaiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -53,7 +53,7 @@ export class AiService {
 
     let result: any;
     try {
-      const text = await this.callGroq(systemPrompt, userMessage);
+      const text = await this.callXAI(systemPrompt, userMessage);
       result = JSON.parse(text);
     } catch {
       result = {
@@ -86,7 +86,7 @@ export class AiService {
 
     let result: any;
     try {
-      const text = await this.callGroq(systemPrompt, userMessage);
+      const text = await this.callXAI(systemPrompt, userMessage);
       result = JSON.parse(text);
     } catch {
       const sections = [
@@ -125,7 +125,7 @@ export class AiService {
     const userMessage = `Бриф: ${dto.brief}`;
 
     try {
-      const text = await this.callGroq(systemPrompt, userMessage);
+      const text = await this.callXAI(systemPrompt, userMessage);
       return JSON.parse(text);
     } catch {
       return {
@@ -149,7 +149,7 @@ export class AiService {
     const userMessage = `Описание: ${dto.scope}${dto.budget ? `\nПланируемый бюджет: ${dto.budget} руб.` : ''}`;
 
     try {
-      const text = await this.callGroq(systemPrompt, userMessage);
+      const text = await this.callXAI(systemPrompt, userMessage);
       return JSON.parse(text);
     } catch {
       return {
