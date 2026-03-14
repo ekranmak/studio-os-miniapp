@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { HealthController } from './health.controller';
@@ -19,7 +18,6 @@ import { TelegramModule } from './modules/telegram/telegram.module';
     ProjectsModule,
     TasksModule,
     DocumentsModule,
-    AiModule,
     TelegramModule,
   ],
   controllers: [HealthController],
