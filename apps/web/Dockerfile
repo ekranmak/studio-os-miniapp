@@ -19,4 +19,5 @@ COPY --from=build_stage /app/.next ./.next
 COPY --from=build_stage /app/node_modules ./node_modules
 COPY --from=build_stage /app/package.json ./package.json
 EXPOSE 3000
+ENV HOSTNAME=0.0.0.0
 CMD ["npm", "run", "start"]
