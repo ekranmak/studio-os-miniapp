@@ -2,7 +2,8 @@
 dockerfilePath = "apps/web/Dockerfile"
 
 [deploy]
+startCommand = "npm run start --workspace apps/web"
 healthcheckPath = "/"
-healthcheckTimeout = 60
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
