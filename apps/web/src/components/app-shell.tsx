@@ -1,19 +1,19 @@
 "use client";
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
-import { Bot, BriefcaseBusiness, FileStack, LayoutDashboard, Settings, Sparkles, SquareKanban, Users } from 'lucide-react';
-import type { PropsWithChildren } from 'react';
+import { Bot, BriefcaseBusiness, FileStack, LayoutDashboard, Settings, SquareKanban, Users } from 'lucide-react';
+import React, { type PropsWithChildren } from 'react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
+const navItems: { href: Route; label: string; icon: React.ElementType }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/leads', label: 'Leads', icon: Bot },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/projects', label: 'Projects', icon: BriefcaseBusiness },
   { href: '/tasks', label: 'Tasks', icon: SquareKanban },
   { href: '/documents', label: 'Documents', icon: FileStack },
-  { href: '/ai', label: 'AI', icon: Sparkles },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
