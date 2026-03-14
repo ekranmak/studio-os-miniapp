@@ -11,4 +11,5 @@ coverage
 *.db-shm
 *.log
 .DS_Store
-**/package-lock.json
+apps/web/package-lock.json
+apps/api/package-lock.json
